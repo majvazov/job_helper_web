@@ -1,12 +1,8 @@
+// filepath: /home/martin/Development/job_helper_web/vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Extract the repository name from GitHub Pages URL 
-// The format is typically username.github.io/repo-name
-const repo = 'job_helper_web';
-
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: `/${repo}/`,
+  base: '/job_helper_web/',  // Must match your repository name exactly
 })
