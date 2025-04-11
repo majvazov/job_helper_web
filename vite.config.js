@@ -11,6 +11,9 @@ export default defineConfig(({ command }) => {
   if (command === 'build') {
     // Set the base path only for production builds (GitHub Pages)
     config.base = '/job_helper_web/'
+    
+    // Add a build-time check to make it clearer what base path is being used
+    console.log('Building for production with base path:', config.base)
   }
 
   return config
