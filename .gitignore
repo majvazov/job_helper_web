@@ -57,3 +57,5 @@ Desktop.ini
 $RECYCLE.BIN/
 .directory
 
+# Firebase configuration
+src/firebase/config.js
