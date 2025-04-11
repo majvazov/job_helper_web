@@ -2,21 +2,39 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>FirstJob</title>
+  <title>FirstJob - Page Not Found</title>
   <script type="text/javascript">
-    // Single Page Apps for GitHub Pages
-    var pathSegmentsToKeep = 1;
-    var l = window.location;
-    l.replace(
-      l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-      l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/#/' +
-      l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/') +
-      (l.search ? '?' + l.search.slice(1) : '') +
-      l.hash
-    );
+    // Get the current path relative to the root domain
+    var path = window.location.pathname;
+    // Define the base path for GitHub Pages (must match vite.config.js)
+    var basePath = '/job_helper_web/'; 
+
+    // Calculate the path segment intended for the SPA router
+    // Remove the base path prefix if it exists
+    var spaPath = path.startsWith(basePath) ? path.substring(basePath.length) : path;
+    // Remove leading/trailing slashes for consistency
+    spaPath = spaPath.replace(/^\/|\/$/g, '');
+
+    // Construct the target URL with the hash
+    var targetUrl = window.location.protocol + '//' +
+                    window.location.hostname +
+                    (window.location.port ? ':' + window.location.port : '') +
+                    basePath +
+                    '#/' + // Start of hash route
+                    spaPath + // The intended route
+                    window.location.search + // Keep query params
+                    window.location.hash; // Keep original hash (if any)
+
+    // Redirect
+    window.location.replace(targetUrl);
   </script>
 </head>
 <body>
-  Redirecting...
+  <p>If you are not redirected automatically, please <a id="redirect-link" href="/job_helper_web/#/">click here</a>.</p>
+  <script>
+    // Update the fallback link dynamically just in case JS above fails early
+    var fallbackBase = '/job_helper_web/#/';
+    document.getElementById('redirect-link').href = window.location.protocol + '//' + window.location.hostname + (window.location.port ? ':' + window.location.port : '') + fallbackBase;
+  </script>
 </body>
 </html>
