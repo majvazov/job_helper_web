@@ -1,0 +1,53 @@
+:root {
+    --primary: #0275d8;
+    --secondary: #5cb85c;
+    --danger: #d9534f;
+    --warning: #f0ad4e;
+    --info: #5bc0de;
+    --background-primary: #f8f9fa;
+    --background-secondary: #e9ecef;
+    --text-primary: #333;
+    --text-secondary: #666;
+  }
+  
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--background-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+  }
+  
+  .app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .main-content {
+    flex: 1;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  
+  a:hover {
+    text-decoration: underline;
+  }
+  
+  button {
+    cursor: pointer;
+  }

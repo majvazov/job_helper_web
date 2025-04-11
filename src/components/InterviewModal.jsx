@@ -1,221 +1,135 @@
+// File: /home/martin/Development/job_helper_web/src/components/InterviewModal.jsx
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import interviewData from '../data/interviewData';
+import { getInterviewQuestions } from '../services/interviewService';
 
-const ModalOverlay = styled.div`
-  display: ${props => props.isOpen ? 'block' : 'none'};
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  z-index: 1000;
-  overflow-y: auto;
-`;
-
-const ModalContent = styled.div`
-  background-color: white;
-  margin: 10% auto;
-  padding: 2rem;
-  width: 80%;
+const ModalContainer = styled.div`
   max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: white;
   border-radius: 8px;
-  position: relative;
-  
-  @media (max-width: 768px) {
-    width: 95%;
-    margin: 5% auto;
-  }
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 `;
 
-const CloseButton = styled.span`
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  font-size: 1.5rem;
-  cursor: pointer;
+const ModalHeader = styled.div`
+  margin-bottom: 2rem;
 `;
 
 const QuestionContainer = styled.div`
-  background-color: var(--light);
+  margin-bottom: 2rem;
   padding: 1rem;
+  background-color: var(--background-secondary);
   border-radius: 8px;
-  margin-bottom: 1rem;
-  margin-top: 1rem;
 `;
 
-const AnswerInput = styled.textarea`
-  width: 100%;
-  padding: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-  resize: vertical;
-  min-height: 100px;
-`;
-
-const FeedbackContainer = styled.div`
-  display: ${props => props.visible ? 'block' : 'none'};
-  padding: 1rem;
-  border-radius: 4px;
-  margin-top: 1rem;
-  background-color: ${props => props.type === 'good' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'};
-  border: 1px solid ${props => props.type === 'good' ? 'var(--success)' : 'var(--error)'};
-`;
-
-const ButtonContainer = styled.div`
+const NavigationButtons = styled.div`
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
+  justify-content: space-between;
+  margin-top: 2rem;
 `;
 
-const InterviewModal = ({ isOpen, jobType, onClose }) => {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answer, setAnswer] = useState('');
-  const [showGoodFeedback, setShowGoodFeedback] = useState(false);
-  const [showBadFeedback, setShowBadFeedback] = useState(false);
-  const [interviewStarted, setInterviewStarted] = useState(false);
-  const [interviewCompleted, setInterviewCompleted] = useState(false);
+const Button = styled.button`
+  padding: 0.8rem 1.5rem;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
   
-  // Reset state when modal opens with a new job type
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentQuestionIndex(0);
-      setAnswer('');
-      setShowGoodFeedback(false);
-      setShowBadFeedback(false);
-      setInterviewStarted(false);
-      setInterviewCompleted(false);
-    }
-  }, [isOpen, jobType]);
-  
-  const jobData = interviewData[jobType];
-  
-  if (!jobData) {
-    return null;
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
   }
+`;
+
+const InterviewModal = () => {
+  const { jobType } = useParams();
+  const navigate = useNavigate();
   
-  const currentQuestion = interviewStarted && !interviewCompleted 
-    ? jobData.questions[currentQuestionIndex]
-    : null;
+  const [interviewData, setInterviewData] = useState(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
-  const handleStartInterview = () => {
-    setInterviewStarted(true);
-    setInterviewCompleted(false);
-  };
-  
-  const handleSubmitAnswer = () => {
-    if (answer.trim().length < 20) {
-      alert("Please provide a more detailed answer.");
-      return;
-    }
+  useEffect(() => {
+    const fetchInterviewData = async () => {
+      try {
+        setLoading(true);
+        const data = await getInterviewQuestions(jobType);
+        
+        if (!data) {
+          setError(`No interview questions found for ${jobType} jobs.`);
+        } else {
+          setInterviewData(data);
+          setError(null);
+        }
+      } catch (err) {
+        console.error('Error fetching interview data:', err);
+        setError('Failed to load interview questions. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    // Provide feedback based on answer length
-    // In a real app, you would use more sophisticated analysis
-    if (answer.length > 100) {
-      setShowGoodFeedback(true);
-      setShowBadFeedback(false);
-    } else {
-      setShowGoodFeedback(false);
-      setShowBadFeedback(true);
+    fetchInterviewData();
+  }, [jobType]);
+  
+  const handleNext = () => {
+    if (currentQuestionIndex < interviewData.questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
   };
   
-  const handleNextQuestion = () => {
-    setCurrentQuestionIndex(prev => prev + 1);
-    setAnswer('');
-    setShowGoodFeedback(false);
-    setShowBadFeedback(false);
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
   };
   
-  const handleFinishInterview = () => {
-    setInterviewCompleted(true);
+  const handleClose = () => {
+    navigate('/');
   };
   
-  const handleRestartInterview = () => {
-    setCurrentQuestionIndex(0);
-    setAnswer('');
-    setShowGoodFeedback(false);
-    setShowBadFeedback(false);
-    setInterviewStarted(true);
-    setInterviewCompleted(false);
-  };
+  if (loading) return <div>Loading interview questions...</div>;
+  if (error) return <div>{error}</div>;
+  if (!interviewData || !interviewData.questions || interviewData.questions.length === 0) 
+    return <div>No interview questions available.</div>;
+  
+  const currentQuestion = interviewData.questions[currentQuestionIndex];
   
   return (
-    <ModalOverlay isOpen={isOpen}>
-      <ModalContent>
-        <CloseButton onClick={onClose}>&times;</CloseButton>
-        <h2>{jobData.title}</h2>
-        <p>{jobData.description}</p>
+    <ModalContainer>
+      <ModalHeader>
+        <h2>{interviewData.title}</h2>
+        <p>{interviewData.description}</p>
+      </ModalHeader>
+      
+      <QuestionContainer>
+        <h3>Question {currentQuestionIndex + 1} of {interviewData.questions.length}</h3>
+        <p>{currentQuestion.question}</p>
         
-        <QuestionContainer>
-          {!interviewStarted && (
-            <p>Click "Start Interview" to begin.</p>
-          )}
-          {interviewStarted && !interviewCompleted && (
-            <p>{currentQuestion.question}</p>
-          )}
-          {interviewCompleted && (
-            <p>Interview practice completed! You've answered all the questions for this position.</p>
-          )}
-        </QuestionContainer>
+        <h4 style={{ marginTop: '1rem' }}>Tips:</h4>
+        <ul>
+          {currentQuestion.tips && currentQuestion.tips.map((tip, index) => (
+            <li key={index}>{tip}</li>
+          ))}
+        </ul>
+      </QuestionContainer>
+      
+      <NavigationButtons>
+        <Button onClick={handlePrevious} disabled={currentQuestionIndex === 0}>
+          Previous
+        </Button>
         
-        {interviewStarted && !interviewCompleted && (
-          <>
-            <AnswerInput
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Type your answer here..."
-              disabled={showGoodFeedback || showBadFeedback}
-            />
-            
-            <FeedbackContainer visible={showGoodFeedback} type="good">
-              <h4>Good Answer!</h4>
-              <p>{currentQuestion.goodFeedback}</p>
-            </FeedbackContainer>
-            
-            <FeedbackContainer visible={showBadFeedback} type="bad">
-              <h4>Consider Improving</h4>
-              <p>{currentQuestion.badFeedback}</p>
-            </FeedbackContainer>
-          </>
+        {currentQuestionIndex < interviewData.questions.length - 1 ? (
+          <Button onClick={handleNext}>Next</Button>
+        ) : (
+          <Button onClick={handleClose}>Finish</Button>
         )}
-        
-        <ButtonContainer>
-          {!interviewStarted && (
-            <button className="btn btn-primary" onClick={handleStartInterview}>
-              Start Interview
-            </button>
-          )}
-          
-          {interviewStarted && !interviewCompleted && !showGoodFeedback && !showBadFeedback && (
-            <button className="btn btn-primary" onClick={handleSubmitAnswer}>
-              Submit Answer
-            </button>
-          )}
-          
-          {(showGoodFeedback || showBadFeedback) && currentQuestionIndex < jobData.questions.length - 1 && (
-            <button className="btn" onClick={handleNextQuestion}>
-              Next Question
-            </button>
-          )}
-          
-          {(showGoodFeedback || showBadFeedback) && currentQuestionIndex === jobData.questions.length - 1 && (
-            <button className="btn" onClick={handleFinishInterview}>
-              Finish Interview
-            </button>
-          )}
-          
-          {interviewCompleted && (
-            <button className="btn btn-primary" onClick={handleRestartInterview}>
-              Practice Again
-            </button>
-          )}
-        </ButtonContainer>
-      </ModalContent>
-    </ModalOverlay>
+      </NavigationButtons>
+    </ModalContainer>
   );
 };
 
