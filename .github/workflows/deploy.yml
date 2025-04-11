@@ -45,7 +45,7 @@ jobs:
           export { auth, db };" > src/firebase/config.js
 
       - name: Build project 🔧
-        run: npm run build
+        run: npm run build -- --debug # Add --debug flag here
 
       - name: Check build output
         run: |
