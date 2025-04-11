@@ -47,11 +47,17 @@ jobs:
       - name: Build project 🔧
         run: npm run build
 
+      - name: Check build output
+        run: |
+          echo "Files in dist directory:"
+          ls -la dist/
+          echo "Contents of assets directory:"
+          ls -la dist/assets/ || echo "No assets directory found"
+    
       - name: Create necessary files 📄
         run: |
           touch dist/.nojekyll
-          # Remove the CNAME line - it's causing problems
-
+          
       - name: Debug dist directory
         run: ls -la dist/
 
