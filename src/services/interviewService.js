@@ -1,34 +1,62 @@
 // File: /home/martin/Development/job_helper_web/src/services/interviewService.js
-import { collection, getDocs, addDoc, query, where } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { collection, getDocs, addDoc, query, where, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase/config.js';
+import interviewData from '../data/interviewData.js';
 
 // Get interview questions for a specific job type
 export const getInterviewQuestions = async (jobType) => {
   try {
-    const q = query(collection(db, "interviews"), where("jobType", "==", jobType));
+    // First try to get data from Firebase
+    const interviewsRef = collection(db, "interviews");
+    const q = query(interviewsRef, where("jobType", "==", jobType));
     const querySnapshot = await getDocs(q);
     
     if (querySnapshot.empty) {
-      // No questions found, create some sample ones
-      await createSampleInterview(jobType);
+      // If no data in Firebase, create it using the predefined data
+      console.log('Creating interview data in Firebase for:', jobType);
+      const data = interviewData[jobType];
       
-      // Try again after creating samples
-      const newSnapshot = await getDocs(q);
-      if (newSnapshot.empty) {
+      if (!data) {
+        console.error(`No predefined data found for job type: ${jobType}`);
         return null;
       }
       
-      const doc = newSnapshot.docs[0];
-      return {
-        id: doc.id,
-        ...doc.data()
+      // Create the interview document with all required fields
+      const interviewDoc = {
+        jobType: jobType,
+        title: data.title,
+        description: data.description,
+        questions: data.questions.map(q => ({
+          question: q.question,
+          tips: q.tips || [],
+          goodFeedback: q.goodFeedback,
+          badFeedback: q.badFeedback
+        }))
       };
+      
+      // Store in Firebase
+      try {
+        const docRef = await addDoc(interviewsRef, interviewDoc);
+        console.log('Interview data created with ID:', docRef.id);
+        
+        // Return the newly created data
+        return {
+          id: docRef.id,
+          ...interviewDoc
+        };
+      } catch (error) {
+        console.error('Error storing interview data:', error);
+        return null;
+      }
     }
     
+    // Return existing data
     const doc = querySnapshot.docs[0];
+    const existingData = doc.data();
+    console.log('Retrieved interview data:', existingData);
     return {
       id: doc.id,
-      ...doc.data()
+      ...existingData
     };
   } catch (error) {
     console.error(`Error getting interview questions for ${jobType}:`, error);
@@ -36,99 +64,53 @@ export const getInterviewQuestions = async (jobType) => {
   }
 };
 
-// Create sample interview questions
-const createSampleInterview = async (jobType) => {
+// Function to clear all interview data
+export const clearInterviewData = async () => {
+  console.log('Clearing existing interview data...');
   const interviewsRef = collection(db, "interviews");
+  const querySnapshot = await getDocs(interviewsRef);
   
-  let sampleData = {
-    jobType: jobType,
-    title: "Sample Interview",
-    description: "Practice these common interview questions",
-    questions: []
-  };
+  const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+  await Promise.all(deletePromises);
+  console.log('All interview data cleared!');
+};
+
+// Function to populate all interview data into Firebase
+export const populateInterviewData = async (forceRefresh = false) => {
+  console.log('Starting to populate interview data...');
   
-  // Default questions for any job type
-  const defaultQuestions = [
-    {
-      question: "Tell me about yourself.",
-      tips: [
-        "Keep it professional and relevant to the job",
-        "Highlight key experiences and strengths",
-        "Be concise - aim for 1-2 minutes"
-      ]
-    },
-    {
-      question: "Why are you interested in this position?",
-      tips: [
-        "Research the company beforehand",
-        "Connect the job to your career goals",
-        "Show enthusiasm for the specific role"
-      ]
-    },
-    {
-      question: "What are your strengths and weaknesses?",
-      tips: [
-        "Choose strengths relevant to the job",
-        "For weaknesses, show how you're working to improve",
-        "Be honest but strategic"
-      ]
-    }
-  ];
-  
-  // Add job-specific questions based on jobType
-  switch (jobType) {
-    case "customer-service":
-      sampleData.title = "Customer Service Interview";
-      sampleData.description = "Practice these common customer service interview questions";
-      sampleData.questions = [
-        ...defaultQuestions,
-        {
-          question: "How would you handle an angry customer?",
-          tips: [
-            "Stay calm and listen actively",
-            "Show empathy and understanding",
-            "Focus on finding a solution"
-          ]
-        },
-        {
-          question: "Describe a time you went above and beyond for a customer.",
-          tips: [
-            "Use the STAR method (Situation, Task, Action, Result)",
-            "Highlight positive outcomes",
-            "Show your commitment to customer satisfaction"
-          ]
-        }
-      ];
-      break;
-      
-    case "web-developer":
-      sampleData.title = "Web Developer Interview";
-      sampleData.description = "Practice these common web development interview questions";
-      sampleData.questions = [
-        ...defaultQuestions,
-        {
-          question: "Explain the difference between HTML, CSS, and JavaScript.",
-          tips: [
-            "Be clear about each language's purpose",
-            "Use simple analogies if possible",
-            "Mention how they work together"
-          ]
-        },
-        {
-          question: "How do you approach responsive design?",
-          tips: [
-            "Mention mobile-first approach",
-            "Talk about CSS media queries",
-            "Discuss frameworks you've used (if any)"
-          ]
-        }
-      ];
-      break;
-      
-    default:
-      sampleData.questions = defaultQuestions;
+  if (forceRefresh) {
+    await clearInterviewData();
   }
   
-  await addDoc(interviewsRef, sampleData);
-  console.log(`Sample interview for ${jobType} created successfully`);
+  const jobTypes = Object.keys(interviewData);
+  
+  for (const jobType of jobTypes) {
+    console.log(`Populating data for ${jobType}...`);
+    const data = interviewData[jobType];
+    
+    // Create the interview document with all required fields
+    const interviewDoc = {
+      jobType: jobType,
+      title: data.title,
+      description: data.description,
+      questions: data.questions.map(q => ({
+        question: q.question,
+        tips: q.tips || [],
+        goodFeedback: q.goodFeedback,
+        badFeedback: q.badFeedback
+      }))
+    };
+    
+    // Store in Firebase
+    try {
+      const interviewsRef = collection(db, "interviews");
+      const docRef = await addDoc(interviewsRef, interviewDoc);
+      console.log('Created interview data with ID:', docRef.id);
+    } catch (error) {
+      console.error(`Error creating interview data for ${jobType}:`, error);
+    }
+  }
+  
+  console.log('Finished populating all interview data!');
 };

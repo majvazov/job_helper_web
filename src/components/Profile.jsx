@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile, removeJob } from '../services/userService';
+import InterviewModal from './InterviewModal';
 
 const ProfileContainer = styled.div`
   max-width: 800px;
@@ -33,6 +34,27 @@ const JobItem = styled.li`
   align-items: center;
 `;
 
+const JobActions = styled.div`
+  display: flex;
+  gap: 1rem;
+`;
+
+const ActionButton = styled.button`
+  padding: 0.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: white;
+  
+  &.remove {
+    background-color: var(--danger);
+  }
+  
+  &.practice {
+    background-color: var(--primary);
+  }
+`;
+
 const RemoveButton = styled.button`
   background-color: var(--danger);
   color: white;
@@ -57,6 +79,8 @@ const Profile = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showInterview, setShowInterview] = useState(false);
+  const [selectedJobType, setSelectedJobType] = useState(null);
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -97,6 +121,36 @@ const Profile = () => {
     }
   };
   
+  const handlePracticeInterview = (job) => {
+    // Map common job titles to our interview types
+    const jobTypeMap = {
+      'sales associate': 'sales',
+      'sales representative': 'sales',
+      'customer service representative': 'customer-service',
+      'customer service agent': 'customer-service',
+      'web developer': 'web-developer',
+      'frontend developer': 'web-developer',
+      'backend developer': 'web-developer',
+      'administrative assistant': 'admin',
+      'office administrator': 'admin',
+      'data entry clerk': 'data-entry',
+      'data entry specialist': 'data-entry',
+      'social media manager': 'social-media',
+      'social media specialist': 'social-media'
+    };
+
+    const jobTitle = job.title.toLowerCase();
+    const interviewType = jobTypeMap[jobTitle] || jobTitle.replace(/\s+/g, '-');
+    
+    setSelectedJobType(interviewType);
+    setShowInterview(true);
+  };
+
+  const handleCloseInterview = () => {
+    setShowInterview(false);
+    setSelectedJobType(null);
+  };
+  
   const handleLogout = async () => {
     try {
       await logout();
@@ -114,44 +168,65 @@ const Profile = () => {
   }
   
   return (
-    <ProfileContainer>
-      <h2>My Profile</h2>
-      
-      <Section>
-        <h3>Account Information</h3>
-        <p><strong>Name:</strong> {userProfile?.name || 'Not provided'}</p>
-        <p><strong>Email:</strong> {currentUser.email}</p>
-        <p><strong>Member since:</strong> {
-          userProfile?.createdAt ? 
-          new Date(userProfile.createdAt).toLocaleDateString() :
-          'Recently'
-        }</p>
-      </Section>
-      
-      <Section>
-        <h3>Saved Jobs</h3>
-        {userProfile?.savedJobs?.length > 0 ? (
-          <JobList>
-            {userProfile.savedJobs.map((job, index) => (
-              <JobItem key={index}>
-                <div>
-                  <strong>{job.title}</strong> at {job.company}
-                </div>
-                <RemoveButton onClick={() => handleRemoveJob(job)}>
-                  Remove
-                </RemoveButton>
-              </JobItem>
-            ))}
-          </JobList>
-        ) : (
-          <p>You haven't saved any jobs yet.</p>
-        )}
-      </Section>
-      
-      <LogoutButton onClick={handleLogout}>
-        Logout
-      </LogoutButton>
-    </ProfileContainer>
+    <>
+      <ProfileContainer>
+        <h2>My Profile</h2>
+        
+        <Section>
+          <h3>Account Information</h3>
+          <p><strong>Name:</strong> {userProfile?.name || 'Not provided'}</p>
+          <p><strong>Email:</strong> {currentUser.email}</p>
+          <p><strong>Member since:</strong> {
+            userProfile?.createdAt ? 
+            new Date(userProfile.createdAt).toLocaleDateString() :
+            'Recently'
+          }</p>
+        </Section>
+        
+        <Section>
+          <h3>Saved Jobs</h3>
+          {userProfile?.savedJobs?.length > 0 ? (
+            <JobList>
+              {userProfile.savedJobs.map((job, index) => (
+                <JobItem key={index}>
+                  <div>
+                    <strong>{job.title}</strong> at {job.company}
+                  </div>
+                  <JobActions>
+                    <ActionButton 
+                      className="practice"
+                      onClick={() => handlePracticeInterview(job)}
+                    >
+                      Practice Interview
+                    </ActionButton>
+                    <ActionButton 
+                      className="remove"
+                      onClick={() => handleRemoveJob(job)}
+                    >
+                      Remove
+                    </ActionButton>
+                  </JobActions>
+                </JobItem>
+              ))}
+            </JobList>
+          ) : (
+            <p>You haven't saved any jobs yet.</p>
+          )}
+        </Section>
+        
+        <LogoutButton onClick={handleLogout}>
+          Logout
+        </LogoutButton>
+      </ProfileContainer>
+
+      {showInterview && selectedJobType && (
+        <InterviewModal
+          jobType={selectedJobType}
+          open={showInterview}
+          onClose={handleCloseInterview}
+        />
+      )}
+    </>
   );
 };
 

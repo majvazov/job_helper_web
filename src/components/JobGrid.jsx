@@ -19,6 +19,9 @@ const JobCard = styled.div`
   padding: 1.5rem;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   
   &:hover {
     transform: translateY(-5px);
@@ -29,6 +32,8 @@ const JobTitle = styled.h3`
   margin-top: 0;
   margin-bottom: 0.5rem;
   color: var(--primary);
+  font-weight: bold;
+  font-size: 1.25rem;
 `;
 
 const JobCompany = styled.h4`
@@ -40,6 +45,7 @@ const JobCompany = styled.h4`
 const JobDescription = styled.p`
   color: var(--text-primary);
   margin-bottom: 1.5rem;
+  flex-grow: 1;
 `;
 
 const TagContainer = styled.div`
@@ -60,10 +66,11 @@ const Tag = styled.span`
 const ButtonContainer = styled.div`
   display: flex;
   gap: 1rem;
+  margin-top: auto;
 `;
 
 const PracticeButton = styled(Link)`
-  background-color: var(--primary);
+  background-color: #F28C28;
   color: white;
   text-decoration: none;
   padding: 0.8rem 1rem;
@@ -71,10 +78,13 @@ const PracticeButton = styled(Link)`
   font-weight: 500;
   text-align: center;
   flex: 1;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, color 0.2s, border 0.2s;
+  border: 1px solid transparent;
   
   &:hover {
-    background-color: #0056b3;
+    background-color: white;
+    color: #F28C28;
+    border: 1px solid #F28C28;
   }
 `;
 
