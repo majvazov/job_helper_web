@@ -24,7 +24,6 @@ const Hero = ({ onPracticeClick }) => {
     <HeroSection className="hero">
       <h2>Start Your Career Journey Today</h2>
       <p>Find entry-level positions that don't require previous work experience and prepare for interviews with our mock interview tool.</p>
-      <a href="#jobs" className="btn">Browse Jobs</a>
       <button className="btn btn-primary" onClick={onPracticeClick}>Practice Interviews</button>
     </HeroSection>
   );

@@ -53,12 +53,11 @@ const Navbar = () => {
           <NavItem>
             <NavLink to="/">Home</NavLink>
           </NavItem>
-          <NavItem>
-            <NavLink to="/jobs">Browse Jobs</NavLink>
-          </NavItem>
+          
           <NavItem>
             <NavLink to="/interview/customer-service">Practice Interviews</NavLink>
           </NavItem>
+          
         </NavLeft>
         <NavRight>
           {currentUser ? (

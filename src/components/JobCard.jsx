@@ -19,6 +19,8 @@ const JobTitle = styled.h3`
   margin-top: 0;
   margin-bottom: 0.5rem;
   color: var(--primary);
+  font-weight: bold;
+  font-size: 1.25rem; /* Increased font size */
 `;
 
 const JobCompany = styled.h4`
@@ -53,7 +55,7 @@ const ButtonContainer = styled.div`
 `;
 
 const PracticeButton = styled(Link)`
-  background-color: var(--primary);
+  background-color: #FFA500;
   color: white;
   text-decoration: none;
   padding: 0.8rem 1rem;
@@ -61,10 +63,11 @@ const PracticeButton = styled(Link)`
   font-weight: 500;
   text-align: center;
   flex: 1;
-  transition: background-color 0.2s;
-  
+  transition: background-color 0.2s, color 0.2s;
+
   &:hover {
-    background-color: #0056b3;
+    background-color: white;
+    color: #FFA500;
   }
 `;
 
@@ -105,7 +108,7 @@ const JobCard = ({ job, onSaveJob, isLoggedIn }) => {
       </TagContainer>
       <ButtonContainer>
         <PracticeButton to={`/interview/${job.jobType}`}>
-          Practice Interview
+          Practice Interviews
         </PracticeButton>
         <SaveButton onClick={handleSaveClick}>
           Save Job
