@@ -51,7 +51,7 @@ const ProgressBar = styled.div`
 `;
 
 const Progress = styled.div`
-  width: ${props => props.progress}%;
+  width: ${props => props.$progress}%;
   height: 100%;
   background: linear-gradient(90deg, var(--primary) 0%, #4CAF50 100%);
   transition: width 0.5s ease;
@@ -165,15 +165,15 @@ const NavigationButtons = styled.div`
 
 const Button = styled.button`
   padding: 0.9rem 1.8rem;
-  background: ${props => props.disabled ? '#e2e8f0' : 'linear-gradient(135deg, var(--primary) 0%, #4CAF50 100%)'};
-  color: ${props => props.disabled ? '#a0aec0' : 'white'};
+  background: ${props => props.$disabled ? '#e2e8f0' : 'linear-gradient(135deg, var(--primary) 0%, #4CAF50 100%)'};
+  color: ${props => props.$disabled ? '#a0aec0' : 'white'};
   border: none;
   border-radius: 8px;
-  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
   font-weight: 500;
   font-size: 1rem;
   transition: all 0.2s ease;
-  box-shadow: ${props => props.disabled ? 'none' : '0 2px 4px rgba(0, 0, 0, 0.1)'};
+  box-shadow: ${props => props.$disabled ? 'none' : '0 2px 4px rgba(0, 0, 0, 0.1)'};
   
   &:not(:disabled):hover {
     transform: translateY(-1px);
@@ -233,10 +233,10 @@ const Circle = styled.div`
   width: 1rem;
   height: 1rem;
   border-radius: 50%;
-  background-color: ${props => props.filled ? '#4CAF50' : '#e2e8f0'};
+  background-color: ${props => props.$filled ? '#4CAF50' : '#e2e8f0'};
   transition: all 0.3s ease;
   
-  ${props => props.filled && `
+  ${props => props.$filled && `
     animation: fillIn 0.3s ease;
     @keyframes fillIn {
       0% { transform: scale(0.8); }
@@ -343,13 +343,6 @@ const InterviewModal = ({ open, onClose, jobType: propJobType }) => {
       .split(/\s+/)
       .filter(word => word.length > 2); // Filter out very short words
 
-    // Check for minimum answer length (e.g., at least 50 words)
-    if (answerWords.length < 50) {
-      setCanProceed(false);
-      setMatchingWords([]);
-      return;
-    }
-
     // Check for word repetition/spam
     const wordFrequency = {};
     answerWords.forEach(word => {
@@ -357,28 +350,73 @@ const InterviewModal = ({ open, onClose, jobType: propJobType }) => {
     });
 
     // Detect word spam (if any word is repeated too many times)
-    const MAX_WORD_REPETITION = 3;
-    const hasWordSpam = Object.values(wordFrequency).some(count => count > MAX_WORD_REPETITION);
+    const MAX_WORD_REPETITION = 4;
+    const spamWords = Object.entries(wordFrequency)
+      .filter(([_, count]) => count > MAX_WORD_REPETITION)
+      .map(([word]) => word);
+    
+    const hasWordSpam = spamWords.length > 0;
 
     if (hasWordSpam) {
       setCanProceed(false);
       setMatchingWords([]);
-      return;
+      return { answerWords, hasWordSpam, spamWords };
     }
 
-    // Find unique matching keywords
-    const uniqueMatchingWords = [...new Set(answerWords)].filter(word => keyWords.includes(word));
+    // Helper function to check if a word matches or contains a keyword
+    const isWordMatch = (word, keyword) => {
+      // Direct match
+      if (word === keyword) return true;
+      
+      // Check for word variations
+      if (word.includes(keyword) || keyword.includes(word)) return true;
+      
+      // Check for common word endings
+      const wordStems = [
+        word,
+        word.replace(/ing$/, ''),
+        word.replace(/ed$/, ''),
+        word.replace(/s$/, ''),
+        word.replace(/es$/, ''),
+      ];
+      
+      const keywordStems = [
+        keyword,
+        keyword.replace(/ing$/, ''),
+        keyword.replace(/ed$/, ''),
+        keyword.replace(/s$/, ''),
+        keyword.replace(/es$/, ''),
+      ];
+      
+      return wordStems.some(stem => 
+        keywordStems.some(keywordStem => 
+          stem === keywordStem || 
+          (stem.length > 3 && keywordStem.length > 3 && 
+           (stem.includes(keywordStem) || keywordStem.includes(stem)))
+        )
+      );
+    };
+
+    // Find matching keywords with improved matching
+    const uniqueMatchingWords = [...new Set(answerWords)].filter(word =>
+      keyWords.some(keyword => isWordMatch(word, keyword.toLowerCase()))
+    );
     
-    // Log for debugging
-    console.log('Key words for this question:', keyWords);
-    console.log('Unique words in your answer:', [...new Set(answerWords)]);
+    // Debug logging
+    console.log('Answer words:', answerWords);
+    console.log('Keywords:', keyWords);
     console.log('Matching words:', uniqueMatchingWords);
-    console.log('Number of unique matches:', uniqueMatchingWords.length);
     
-    // Allow proceeding if enough unique keywords match and answer is long enough
-    setCanProceed(uniqueMatchingWords.length >= 6);
+    // Require 6 unique keyword matches
+    const hasEnoughKeywords = uniqueMatchingWords.length >= 6;
+    
+    setCanProceed(hasEnoughKeywords);
     setMatchingWords(uniqueMatchingWords);
-    return { answerWords, hasWordSpam }; // Return these values for the UI
+    return { 
+      answerWords, 
+      hasWordSpam: false,
+      matchedKeywords: uniqueMatchingWords 
+    };
   };
 
   const handleAnswerChange = (event) => {
@@ -424,7 +462,7 @@ const InterviewModal = ({ open, onClose, jobType: propJobType }) => {
         <h2>{interviewData.title}</h2>
         <p>{interviewData.description}</p>
         <ProgressBar>
-          <Progress progress={(currentQuestionIndex + 1) / interviewData.questions.length * 100} />
+          <Progress $progress={(currentQuestionIndex + 1) / interviewData.questions.length * 100} />
         </ProgressBar>
       </ModalHeader>
       
@@ -449,39 +487,31 @@ const InterviewModal = ({ open, onClose, jobType: propJobType }) => {
           <AnswerTextarea
             value={userAnswer}
             onChange={handleAnswerChange}
-            placeholder="Provide a detailed answer (minimum 50 words). Include specific examples and relevant terminology in your response."
+            placeholder="Include at least 6 relevant keywords in your answer."
           />
 
           <ProgressIndicator>
             {!canProceed && userAnswer.length > 0 && (
               <>
                 <div style={{ textAlign: 'center', color: '#4a5568', marginBottom: '0.5rem' }}>
-                  {validationState.answerWords.length < 50 ? (
-                    `Please provide a more detailed answer (${validationState.answerWords.length}/50 words)`
-                  ) : validationState.hasWordSpam ? (
+                  {validationState.hasWordSpam ? (
                     "Please avoid repeating words excessively"
                   ) : (
-                    "Include more relevant details in your answer"
+                    "Include more relevant keywords in your answer"
                   )}
                 </div>
                 <ProgressCircles>
                   {Array(6).fill(0).map((_, index) => (
                     <Circle 
                       key={index}
-                      filled={index < matchingWords.length}
+                      $filled={index < matchingWords.length}
                     />
                   ))}
                 </ProgressCircles>
                 <ProgressMessage complete={false}>
-                  {validationState.answerWords.length < 50 ? (
-                    <div>
-                      <span>{50 - validationState.answerWords.length}</span> words needed
-                    </div>
-                  ) : (
-                    <div>
-                      <span>{6 - matchingWords.length}</span> key points needed
-                    </div>
-                  )}
+                  <div>
+                    <span>{6 - matchingWords.length}</span> more keywords needed
+                  </div>
                 </ProgressMessage>
               </>
             )}
@@ -489,7 +519,7 @@ const InterviewModal = ({ open, onClose, jobType: propJobType }) => {
             {canProceed && (
               <SuccessMessage>
                 <span>✨</span>
-                Excellent! Your answer is detailed and covers all the key points.
+                Excellent! Your answer includes all the required keywords.
               </SuccessMessage>
             )}
           </ProgressIndicator>
@@ -497,16 +527,16 @@ const InterviewModal = ({ open, onClose, jobType: propJobType }) => {
       </QuestionContainer>
       
       <NavigationButtons>
-        <Button onClick={handlePrevious} disabled={currentQuestionIndex === 0}>
+        <Button onClick={handlePrevious} $disabled={currentQuestionIndex === 0}>
           ← Previous
         </Button>
         
         {currentQuestionIndex < interviewData.questions.length - 1 ? (
-          <Button onClick={handleNext} disabled={!canProceed}>
+          <Button onClick={handleNext} $disabled={!canProceed}>
             Next →
           </Button>
         ) : (
-          <Button onClick={handleClose} disabled={!canProceed}>
+          <Button onClick={handleClose} $disabled={!canProceed}>
             Finish
           </Button>
         )}

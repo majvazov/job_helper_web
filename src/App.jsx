@@ -3,7 +3,6 @@ import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Navbar from './components/Navbar';
 import JobGrid from './components/JobGrid';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -17,7 +16,6 @@ function App() {
       <AuthProvider>
         <div className="app">
           <Header />
-          <Navbar />
           <main className="main-content">
             <Routes>
               <Route path="/" element={<JobGrid />} />
