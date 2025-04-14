@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
 import { getAllJobs } from '../services/jobService';
 import { saveJob } from '../services/userService';
+import ApplicationModal from './ApplicationModal';
 
 // Styled components
 const GridContainer = styled.div`
@@ -65,7 +66,8 @@ const Tag = styled.span`
 
 const ButtonContainer = styled.div`
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: auto;
 `;
 
@@ -104,11 +106,34 @@ const SaveButton = styled.button`
   }
 `;
 
+const ApplyButton = styled.button`
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.8rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  flex: 1;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: #1a4314;
+  }
+`;
+
+const ActionRow = styled.div`
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+`;
+
 const JobGrid = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { currentUser } = useAuth();
+  const [selectedJob, setSelectedJob] = useState(null);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -147,36 +172,58 @@ const JobGrid = () => {
     }
   };
 
+  const handleApply = (job) => {
+    if (!currentUser) {
+      alert('Please login to apply for jobs');
+      return;
+    }
+    setSelectedJob(job);
+  };
+
   if (loading) return <div>Loading jobs...</div>;
   if (error) return <div>{error}</div>;
 
   return (
-    <GridContainer>
-      {jobs.length > 0 ? (
-        jobs.map((job) => (
-          <JobCard key={job.id}>
-            <JobTitle>{job.title}</JobTitle>
-            <JobCompany>{job.company}</JobCompany>
-            <JobDescription>{job.description}</JobDescription>
-            <TagContainer>
-              {job.tags && job.tags.map((tag, index) => (
-                <Tag key={index}>{tag}</Tag>
-              ))}
-            </TagContainer>
-            <ButtonContainer>
-              <PracticeButton to={`/interview/${job.jobType}`}>
-                Practice Interview
-              </PracticeButton>
-              <SaveButton onClick={() => handleSaveJob(job)}>
-                Save Job
-              </SaveButton>
-            </ButtonContainer>
-          </JobCard>
-        ))
-      ) : (
-        <p>No jobs found. Please check back later.</p>
+    <>
+      <GridContainer>
+        {jobs.length > 0 ? (
+          jobs.map((job) => (
+            <JobCard key={job.id}>
+              <JobTitle>{job.title}</JobTitle>
+              <JobCompany>{job.company}</JobCompany>
+              <JobDescription>{job.description}</JobDescription>
+              <TagContainer>
+                {job.tags && job.tags.map((tag, index) => (
+                  <Tag key={index}>{tag}</Tag>
+                ))}
+              </TagContainer>
+              <ButtonContainer>
+                <ApplyButton onClick={() => handleApply(job)}>
+                  Apply Now
+                </ApplyButton>
+                <ActionRow>
+                  <PracticeButton to={`/interview/${job.jobType}`}>
+                    Practice Interview
+                  </PracticeButton>
+                  <SaveButton onClick={() => handleSaveJob(job)}>
+                    Save Job
+                  </SaveButton>
+                </ActionRow>
+              </ButtonContainer>
+            </JobCard>
+          ))
+        ) : (
+          <p>No jobs found. Please check back later.</p>
+        )}
+      </GridContainer>
+
+      {selectedJob && (
+        <ApplicationModal 
+          job={selectedJob} 
+          onClose={() => setSelectedJob(null)} 
+        />
       )}
-    </GridContainer>
+    </>
   );
 };
 

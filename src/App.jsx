@@ -8,6 +8,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Profile from './components/Profile';
 import InterviewModal from './components/InterviewModal';
+import EmployerDashboard from './components/EmployerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -26,6 +27,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/employer/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <EmployerDashboard />
                   </ProtectedRoute>
                 } 
               />

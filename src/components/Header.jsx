@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 const HeaderContainer = styled.header`
   background-color: #2b5a1d;
@@ -45,14 +47,11 @@ const TextContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  text-align: left;
-  margin-top: 0.2rem;
-  
-  p {
-    margin: 0;
-    font-size: 0.95rem;
-    opacity: 0.9;
-    line-height: 1.2;
+`;
+
+const Slogan = styled.p`
+  @media (max-width: 768px) {
+    display: none;
   }
 `;
 
@@ -108,10 +107,33 @@ const AuthButton = styled(Link)`
   &:hover {
     background-color: ${props => props.$primary ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
   }
+
+  @media (max-width: 768px) {
+    &[data-mobile-text]:before {
+      content: attr(data-mobile-text);
+    }
+    &[data-mobile-text] > span {
+      display: none;
+    }
+  }
 `;
 
 const Header = () => {
   const { currentUser } = useAuth();
+  const [userType, setUserType] = useState(null);
+
+  useEffect(() => {
+    const fetchUserType = async () => {
+      if (currentUser) {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          setUserType(userDoc.data().userType);
+        }
+      }
+    };
+
+    fetchUserType();
+  }, [currentUser]);
 
   return (
     <HeaderContainer>
@@ -119,7 +141,7 @@ const Header = () => {
         <LogoSection to="/">
           <Logo src="/logo.png" alt="FirstJob Logo" />
           <TextContainer>
-            <p>Find your first job - No experience required</p>
+            <Slogan>Find your first job - No experience required</Slogan>
           </TextContainer>
         </LogoSection>
 
@@ -128,16 +150,26 @@ const Header = () => {
             <NavItem>
               <NavLink to="/">Home</NavLink>
             </NavItem>
-            <NavItem>
-              <NavLink to="/interview/customer-service">Practice Interviews</NavLink>
-            </NavItem>
+            {(!currentUser || userType === 'jobseeker') && (
+              <NavItem>
+                <NavLink to="/interview/customer-service">Practice Interviews</NavLink>
+              </NavItem>
+            )}
           </NavList>
 
           <AuthSection>
             {currentUser ? (
-              <AuthButton to="/profile" $primary>
-                My Profile
-              </AuthButton>
+              <>
+                {userType === 'employer' ? (
+                  <AuthButton to="/employer/dashboard" $primary data-mobile-text="Dashboard">
+                    <span>Employer Dashboard</span>
+                  </AuthButton>
+                ) : (
+                  <AuthButton to="/profile" $primary>
+                    My Profile
+                  </AuthButton>
+                )}
+              </>
             ) : (
               <>
                 <AuthButton to="/login">

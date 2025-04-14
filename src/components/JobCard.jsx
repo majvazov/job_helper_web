@@ -58,7 +58,7 @@ const PracticeButton = styled(Link)`
   background-color: #FFA500;
   color: white;
   text-decoration: none;
-  padding: 0.8rem 1rem;
+  padding: 0.4rem 0.5rem;
   border-radius: 4px;
   font-weight: 500;
   text-align: center;

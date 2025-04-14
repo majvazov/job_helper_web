@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile, removeJob } from '../services/userService';
 import InterviewModal from './InterviewModal';
+import MessageBox from './MessageBox';
 
 const ProfileContainer = styled.div`
   max-width: 800px;
@@ -53,15 +54,10 @@ const ActionButton = styled.button`
   &.practice {
     background-color: var(--primary);
   }
-`;
 
-const RemoveButton = styled.button`
-  background-color: var(--danger);
-  color: white;
-  border: none;
-  padding: 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
+  &.message {
+    background-color: var(--primary);
+  }
 `;
 
 const LogoutButton = styled.button`
@@ -74,6 +70,45 @@ const LogoutButton = styled.button`
   margin-top: 2rem;
 `;
 
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+`;
+
+const CloseButton = styled.button`
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+
+  &:hover {
+    color: #333;
+  }
+`;
+
 const Profile = () => {
   const { currentUser, logout } = useAuth();
   const [userProfile, setUserProfile] = useState(null);
@@ -81,6 +116,8 @@ const Profile = () => {
   const [error, setError] = useState(null);
   const [showInterview, setShowInterview] = useState(false);
   const [selectedJobType, setSelectedJobType] = useState(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -146,9 +183,9 @@ const Profile = () => {
     setShowInterview(true);
   };
 
-  const handleCloseInterview = () => {
-    setShowInterview(false);
-    setSelectedJobType(null);
+  const handleMessageClick = (application) => {
+    setSelectedApplication(application);
+    setShowMessageModal(true);
   };
   
   const handleLogout = async () => {
@@ -168,65 +205,83 @@ const Profile = () => {
   }
   
   return (
-    <>
-      <ProfileContainer>
-        <h2>My Profile</h2>
-        
-        <Section>
-          <h3>Account Information</h3>
-          <p><strong>Name:</strong> {userProfile?.name || 'Not provided'}</p>
-          <p><strong>Email:</strong> {currentUser.email}</p>
-          <p><strong>Member since:</strong> {
-            userProfile?.createdAt ? 
-            new Date(userProfile.createdAt).toLocaleDateString() :
-            'Recently'
-          }</p>
-        </Section>
-        
-        <Section>
-          <h3>Saved Jobs</h3>
-          {userProfile?.savedJobs?.length > 0 ? (
-            <JobList>
-              {userProfile.savedJobs.map((job, index) => (
-                <JobItem key={index}>
-                  <div>
-                    <strong>{job.title}</strong> at {job.company}
-                  </div>
-                  <JobActions>
-                    <ActionButton 
-                      className="practice"
-                      onClick={() => handlePracticeInterview(job)}
-                    >
-                      Practice Interview
-                    </ActionButton>
-                    <ActionButton 
-                      className="remove"
-                      onClick={() => handleRemoveJob(job)}
-                    >
-                      Remove
-                    </ActionButton>
-                  </JobActions>
-                </JobItem>
-              ))}
-            </JobList>
-          ) : (
-            <p>You haven't saved any jobs yet.</p>
-          )}
-        </Section>
-        
-        <LogoutButton onClick={handleLogout}>
-          Logout
-        </LogoutButton>
-      </ProfileContainer>
+    <ProfileContainer>
+      <h2>My Profile</h2>
+      
+      <Section>
+        <h3>Account Information</h3>
+        <p><strong>Name:</strong> {userProfile?.name || 'Not provided'}</p>
+        <p><strong>Email:</strong> {currentUser.email}</p>
+        <p><strong>Member since:</strong> {
+          userProfile?.createdAt ? 
+          new Date(userProfile.createdAt).toLocaleDateString() :
+          'Recently'
+        }</p>
+      </Section>
+      
+      <Section>
+        <h3>Saved Jobs</h3>
+        {userProfile?.savedJobs?.length > 0 ? (
+          <JobList>
+            {userProfile.savedJobs.map((job, index) => (
+              <JobItem key={index}>
+                <div>
+                  <strong>{job.title}</strong> at {job.company}
+                </div>
+                <JobActions>
+                  <ActionButton 
+                    className="practice"
+                    onClick={() => handlePracticeInterview(job)}
+                  >
+                    Practice Interview
+                  </ActionButton>
+                  <ActionButton 
+                    className="message"
+                    onClick={() => handleMessageClick(job)}
+                  >
+                    Message
+                  </ActionButton>
+                  <ActionButton 
+                    className="remove"
+                    onClick={() => handleRemoveJob(job)}
+                  >
+                    Remove
+                  </ActionButton>
+                </JobActions>
+              </JobItem>
+            ))}
+          </JobList>
+        ) : (
+          <p>You haven't saved any jobs yet.</p>
+        )}
+      </Section>
+      
+      <LogoutButton onClick={handleLogout}>
+        Logout
+      </LogoutButton>
 
       {showInterview && selectedJobType && (
         <InterviewModal
           jobType={selectedJobType}
           open={showInterview}
-          onClose={handleCloseInterview}
+          onClose={() => setShowInterview(false)}
         />
       )}
-    </>
+
+      {showMessageModal && selectedApplication && (
+        <Modal>
+          <ModalContent>
+            <CloseButton onClick={() => setShowMessageModal(false)}>&times;</CloseButton>
+            <h3>Messaging about {selectedApplication.title}</h3>
+            <MessageBox
+              applicationId={selectedApplication.id}
+              senderId={currentUser.uid}
+              receiverId={selectedApplication.employerId}
+            />
+          </ModalContent>
+        </Modal>
+      )}
+    </ProfileContainer>
   );
 };
 

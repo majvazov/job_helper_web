@@ -5,29 +5,36 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import styled from 'styled-components';
 
-const FormContainer = styled.div`
+const Container = styled.div`
   max-width: 400px;
   margin: 2rem auto;
   padding: 2rem;
   background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 `;
 
-const StyledForm = styled.form`
+const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 1rem;
 `;
 
-const StyledInput = styled.input`
+const Input = styled.input`
   padding: 0.8rem;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
 `;
 
-const StyledButton = styled.button`
+const Select = styled.select`
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+`;
+
+const Button = styled.button`
   padding: 0.8rem;
   background-color: var(--primary);
   color: white;
@@ -38,7 +45,12 @@ const StyledButton = styled.button`
   transition: background-color 0.2s;
 
   &:hover {
-    background-color: #0056b3;
+    background-color: #1a4314;
+  }
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
   }
 `;
 
@@ -48,68 +60,162 @@ const ErrorMessage = styled.div`
 `;
 
 const Register = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [userType, setUserType] = useState('jobseeker');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    companyName: '',
+    phone: '',
+    website: '',
+    description: ''
+  });
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     
+    if (formData.password !== formData.confirmPassword) {
+      return setError('Passwords do not match');
+    }
+
     try {
-      // Create user in Firebase Auth
-      const { user } = await register(email, password);
-      
-      // Create user profile in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        name,
-        email,
-        createdAt: new Date().toISOString(),
-        savedJobs: []
-      });
-      
+      setError('');
+      setLoading(true);
+
+      const userData = userType === 'employer' 
+        ? {
+            companyName: formData.companyName,
+            phone: formData.phone,
+            website: formData.website,
+            description: formData.description
+          }
+        : {
+            firstName: formData.firstName,
+            lastName: formData.lastName
+          };
+
+      await register(formData.email, formData.password, userData, userType);
       navigate('/');
-    } catch (err) {
-      setError('Failed to create an account. ' + err.message);
-      console.error(err);
+    } catch (error) {
+      setError('Failed to create an account: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <FormContainer>
+    <Container>
       <h2>Register</h2>
       {error && <ErrorMessage>{error}</ErrorMessage>}
-      <StyledForm onSubmit={handleSubmit}>
-        <StyledInput
-          type="text"
-          placeholder="Full Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <StyledInput
+      
+      <Form onSubmit={handleSubmit}>
+        <Select 
+          value={userType} 
+          onChange={(e) => setUserType(e.target.value)}
+        >
+          <option value="jobseeker">Job Seeker</option>
+          <option value="employer">Employer</option>
+        </Select>
+
+        <Input
           type="email"
+          name="email"
           placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={formData.email}
+          onChange={handleInputChange}
           required
         />
-        <StyledInput
+
+        <Input
           type="password"
+          name="password"
           placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={formData.password}
+          onChange={handleInputChange}
           required
         />
-        <StyledButton type="submit">Register</StyledButton>
-      </StyledForm>
-      <p style={{ marginTop: '1rem', textAlign: 'center' }}>
-        Already have an account? <a href="/login">Login</a>
-      </p>
-    </FormContainer>
+
+        <Input
+          type="password"
+          name="confirmPassword"
+          placeholder="Confirm Password"
+          value={formData.confirmPassword}
+          onChange={handleInputChange}
+          required
+        />
+
+        {userType === 'jobseeker' ? (
+          <>
+            <Input
+              type="text"
+              name="firstName"
+              placeholder="First Name"
+              value={formData.firstName}
+              onChange={handleInputChange}
+              required
+            />
+            <Input
+              type="text"
+              name="lastName"
+              placeholder="Last Name"
+              value={formData.lastName}
+              onChange={handleInputChange}
+              required
+            />
+          </>
+        ) : (
+          <>
+            <Input
+              type="text"
+              name="companyName"
+              placeholder="Company Name"
+              value={formData.companyName}
+              onChange={handleInputChange}
+              required
+            />
+            <Input
+              type="tel"
+              name="phone"
+              placeholder="Phone Number"
+              value={formData.phone}
+              onChange={handleInputChange}
+            />
+            <Input
+              type="url"
+              name="website"
+              placeholder="Company Website"
+              value={formData.website}
+              onChange={handleInputChange}
+            />
+            <Input
+              type="text"
+              name="description"
+              placeholder="Company Description"
+              value={formData.description}
+              onChange={handleInputChange}
+            />
+          </>
+        )}
+
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Registering...' : 'Register'}
+        </Button>
+      </Form>
+    </Container>
   );
 };
 
