@@ -1,65 +1,115 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { db } from '../firebase/config';
-import { collection, query, where, addDoc, onSnapshot, Timestamp, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, addDoc, onSnapshot, Timestamp as FirebaseTimestamp, getDocs, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 
-const Container = styled.div`
+const MessageBoxContainer = styled.div`
   display: flex;
   flex-direction: column;
-  height: 400px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: white;
+  height: 100%;
+  background-color: #f8f9fa;
+  width: 100%; /* Ensure full width */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    max-width: 100%; /* Prevent overflow */
+  }
 `;
 
 const MessagesContainer = styled.div`
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.8rem;
+  
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+  }
 `;
 
-const Message = styled.div`
-  padding: 0.8rem;
-  border-radius: 8px;
-  max-width: 80%;
-  word-wrap: break-word;
+const MessageBubble = styled.div`
+  max-width: 75%;
+  padding: 0.8rem 1rem;
+  border-radius: 18px;
+  position: relative;
+  margin: 0.25rem 0;
+  word-break: break-word;
+  
   ${props => props.$isSender ? `
-    background-color: var(--primary);
-    color: white;
     align-self: flex-end;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark, #005a87));
+    color: white;
+    border-bottom-right-radius: 4px;
   ` : `
-    background-color: #f0f0f0;
     align-self: flex-start;
+    background-color: white;
+    color: black;
+    border: 1px solid #e0e0e0;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   `}
+  
+  @media (max-width: 768px) {
+    max-width: 85%;
+  }
 `;
 
-const MessageTime = styled.span`
-  font-size: 0.8rem;
-  color: ${props => props.$isSender ? 'rgba(255, 255, 255, 0.8)' : '#666'};
-  display: block;
-  margin-top: 0.3rem;
+const MessageTime = styled.div`
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+  text-align: ${props => props.$isSender ? 'right' : 'left'};
+  color: ${props => props.$isSender ? 'rgba(255,255,255,0.8)' : '#aaa'};
 `;
 
-const InputContainer = styled.form`
+const InputContainer = styled.div`
   display: flex;
-  gap: 0.5rem;
   padding: 1rem;
-  border-top: 1px solid #ddd;
+  background-color: white;
+  border-top: 1px solid #eee;
+  align-items: center;
+  position: relative;
 `;
 
-const Input = styled.input`
+const MessageInput = styled.textarea`
   flex: 1;
-  padding: 0.8rem;
+  padding: 0.8rem 1rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
-
+  border-radius: 24px;
+  font-size: 1rem;
+  resize: none;
+  min-height: 20px;
+  max-height: 120px;
+  line-height: 1.4;
+  outline: none;
+  font-family: inherit;
+  
   &:focus {
-    outline: none;
     border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+  }
+  
+  &::placeholder {
+    color: #aaa;
   }
 `;
 
@@ -67,44 +117,163 @@ const SendButton = styled.button`
   background-color: var(--primary);
   color: white;
   border: none;
-  padding: 0.8rem 1.5rem;
-  border-radius: 4px;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  margin-left: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 0.9rem;
-
+  transition: all 0.2s;
+  
   &:hover {
-    background-color: #1a4314;
+    background-color: var(--primary-dark, #005a87);
   }
-
+  
   &:disabled {
     background-color: #ccc;
     cursor: not-allowed;
   }
+  
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const DateDivider = styled.div`
+  text-align: center;
+  color: #888;
+  font-size: 0.8rem;
+  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:before, &:after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  &:before {
+    margin-right: 10px;
+  }
+  
+  &:after {
+    margin-left: 10px;
+  }
+`;
+
+const ApplicationInfo = styled.div`
+  background-color: rgba(var(--primary-rgb), 0.1);
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
+  padding: 0.8rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+`;
+
+const JobTitle = styled.div`
+  font-weight: bold;
+  margin-bottom: 0.3rem;
+`;
+
+const CompanyName = styled.div`
+  color: #666;
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 `;
 
 const MessageBox = ({ applicationId, senderId, receiverId }) => {
+  const { currentUser } = useAuth();
+  const { refreshUnreadCount } = useNotifications();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const [userScrolled, setUserScrolled] = useState(false);
 
+  // Only auto-scroll when new messages arrive if the user hasn't scrolled manually
+  // or when the component initially loads
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!userScrolled || !hasScrolledToBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setHasScrolledToBottom(true);
+    }
   };
 
+  // Handle user scroll events
+  const handleScroll = (e) => {
+    // If the user scrolls up, mark that they've manually scrolled
+    if (e.target.scrollTop < e.target.scrollHeight - e.target.clientHeight - 10) {
+      setUserScrolled(true);
+    }
+    
+    // If the user scrolls to the bottom, reset the userScrolled flag
+    if (e.target.scrollTop >= e.target.scrollHeight - e.target.clientHeight - 10) {
+      setUserScrolled(false);
+    }
+  };
+
+  // Scroll to bottom when messages change, but respect user scrolling
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages.length]); // Only react to message count changes
 
   useEffect(() => {
-    if (!applicationId) {
-      console.error('No applicationId provided');
+    if (!applicationId || !currentUser?.uid) {
+      console.error('Missing required parameters for MessageBox');
       return;
     }
+
+    console.log(`MessageBox initialized with: appId=${applicationId}, sender=${senderId}, receiver=${receiverId}`);
+
+    // Function to directly mark messages as read in Firestore
+    const markMessagesAsReadDirectly = async () => {
+      try {
+        // Get all unread messages where current user is the receiver
+        const messagesRef = collection(db, 'messages');
+        const q = query(
+          messagesRef,
+          where('applicationId', '==', applicationId),
+          where('receiverId', '==', currentUser.uid),
+          where('read', '==', false)
+        );
+
+        const unreadSnapshot = await getDocs(q);
+        console.log(`Found ${unreadSnapshot.docs.length} unread messages to mark as read`);
+
+        if (unreadSnapshot.docs.length === 0) return;
+
+        // Update each unread message directly
+        const updatePromises = unreadSnapshot.docs.map(docSnapshot => {
+          return updateDoc(doc(db, 'messages', docSnapshot.id), { read: true });
+        });
+
+        await Promise.all(updatePromises);
+        console.log('Successfully marked messages as read directly');
+
+        // Force refresh the unread message count
+        if (refreshUnreadCount) {
+          refreshUnreadCount(currentUser.uid);
+        }
+      } catch (error) {
+        console.error('Error marking messages as read directly:', error);
+      }
+    };
 
     // Fetch messages initially
     const fetchMessages = async () => {
       try {
+        console.log('Fetching messages for application:', applicationId);
         const messagesRef = collection(db, 'messages');
         const q = query(
           messagesRef,
@@ -112,18 +281,17 @@ const MessageBox = ({ applicationId, senderId, receiverId }) => {
           orderBy('timestamp', 'asc')
         );
         
-        try {
-          const snapshot = await getDocs(q);
-          const fetchedMessages = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          setMessages(fetchedMessages.sort((a, b) => a.timestamp.seconds - b.timestamp.seconds));
-        } catch (error) {
-          if (error.code === 'failed-precondition') {
-            console.error('This query requires an index. Please create it in the Firebase Console.');
-          }
-        }
+        const snapshot = await getDocs(q);
+        const fetchedMessages = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log(`Fetched ${fetchedMessages.length} messages, marking as read now...`);
+        setMessages(fetchedMessages);
+        
+        // Mark messages as read immediately when loaded
+        await markMessagesAsReadDirectly();
       } catch (error) {
         console.error('Error fetching messages:', error);
       }
@@ -140,21 +308,29 @@ const MessageBox = ({ applicationId, senderId, receiverId }) => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('Real-time message update received');
       const newMessages = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      
       setMessages(newMessages.sort((a, b) => a.timestamp.seconds - b.timestamp.seconds));
-    }, (error) => {
-      if (error.code === 'failed-precondition') {
-        console.error('This query requires an index. Please create it in the Firebase Console.');
-      } else {
-        console.error('Error in messages listener:', error);
+      
+      // Check if there are any new unread messages for current user
+      const hasNewUnreadMessages = newMessages.some(
+        msg => msg.receiverId === currentUser.uid && !msg.read
+      );
+      
+      if (hasNewUnreadMessages) {
+        console.log('New unread messages detected, marking as read...');
+        markMessagesAsReadDirectly();
       }
+    }, (error) => {
+      console.error('Error in messages listener:', error);
     });
 
     return () => unsubscribe();
-  }, [applicationId]);
+  }, [applicationId, currentUser, refreshUnreadCount, senderId, receiverId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -167,7 +343,7 @@ const MessageBox = ({ applicationId, senderId, receiverId }) => {
         senderId,
         receiverId,
         content: newMessage.trim(),
-        timestamp: Timestamp.now(),
+        timestamp: FirebaseTimestamp.now(),
         read: false
       };
 
@@ -182,36 +358,49 @@ const MessageBox = ({ applicationId, senderId, receiverId }) => {
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return '';
-    return new Date(timestamp.seconds * 1000).toLocaleString();
+    
+    // Convert Firestore Timestamp to JavaScript Date if needed
+    let date;
+    if (timestamp instanceof FirebaseTimestamp) {
+      date = timestamp.toDate();
+    } else if (timestamp.seconds) {
+      // Handle raw Firestore timestamp object
+      date = new Date(timestamp.seconds * 1000);
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else {
+      date = new Date(timestamp);
+    }
+    
+    return date.toLocaleString();
   };
 
   return (
-    <Container>
-      <MessagesContainer>
+    <MessageBoxContainer>
+      <MessagesContainer onScroll={handleScroll}>
         {messages.map(message => (
-          <Message key={message.id} $isSender={message.senderId === senderId}>
+          <MessageBubble key={message.id} $isSender={message.senderId === senderId}>
             {message.content}
             <MessageTime $isSender={message.senderId === senderId}>
               {formatTimestamp(message.timestamp)}
             </MessageTime>
-          </Message>
+          </MessageBubble>
         ))}
         <div ref={messagesEndRef} />
       </MessagesContainer>
-      <InputContainer onSubmit={handleSubmit}>
-        <Input
-          type="text"
+      <InputContainer>
+        <MessageInput
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type a message..."
           disabled={sending}
         />
-        <SendButton type="submit" disabled={sending || !newMessage.trim()}>
+        <SendButton onClick={handleSubmit} disabled={sending || !newMessage.trim()}>
           {sending ? 'Sending...' : 'Send'}
         </SendButton>
       </InputContainer>
-    </Container>
+    </MessageBoxContainer>
   );
 };
 
-export default MessageBox; 
+export default MessageBox;

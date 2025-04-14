@@ -54,3 +54,24 @@ export const getUserApplications = async (userId) => {
     return [];
   }
 };
+
+// Get application by ID
+export const getApplicationById = async (applicationId) => {
+  try {
+    const applicationRef = doc(db, 'applications', applicationId);
+    const applicationSnap = await getDoc(applicationRef);
+    
+    if (applicationSnap.exists()) {
+      return {
+        id: applicationSnap.id,
+        ...applicationSnap.data()
+      };
+    } else {
+      console.log(`No application found with ID: ${applicationId}`);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error getting application by ID:', error);
+    return null;
+  }
+};
