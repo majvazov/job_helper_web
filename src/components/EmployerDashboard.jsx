@@ -274,6 +274,15 @@ const CloseButton = styled.button`
   }
 `;
 
+const ApplicationCard = styled.div`
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+`;
+
 const EmployerDashboard = () => {
   const { currentUser, logout } = useAuth();
   const [jobs, setJobs] = useState([]);
@@ -332,7 +341,18 @@ const EmployerDashboard = () => {
           // Fetch user data for each application
           const applicationsWithUsers = await Promise.all(
             jobApplications.map(async (application) => {
-              const userRef = doc(db, 'users', application.userId);
+              const userId = application.applicantId || application.userId;
+              
+              if (!userId) {
+                console.error('No applicant ID found in application:', application);
+                return {
+                  ...application,
+                  applicantName: 'Anonymous User',
+                  applicantEmail: 'No email provided'
+                };
+              }
+              
+              const userRef = doc(db, 'users', userId);
               const userSnap = await getDoc(userRef);
               const userData = userSnap.data() || {};
               
@@ -365,9 +385,10 @@ const EmployerDashboard = () => {
     
     try {
       if (!employerProfile) {
-        throw new Error('Employer profile not found');
+        console.error('Employer profile not found');
+        return;
       }
-
+      
       const jobData = {
         ...formData,
         employerId: currentUser.uid,
@@ -375,7 +396,7 @@ const EmployerDashboard = () => {
         requirements: formData.requirements ? formData.requirements.split(',').map(req => req.trim()) : [],
         benefits: formData.benefits ? formData.benefits.split(',').map(benefit => benefit.trim()) : []
       };
-
+      
       await postJob(jobData);
       await fetchEmployerData();
       setShowForm(false);
@@ -429,23 +450,38 @@ const EmployerDashboard = () => {
           querySnapshot.docs.map(async doc => {
             const appData = doc.data();
             
+            // Use applicantId instead of userId, or check for both
+            const userId = appData.applicantId || appData.userId;
+            
+            if (!userId) {
+              console.error('No applicant ID found in application:', appData);
+              return {
+                id: doc.id,
+                ...appData,
+                applicantName: 'Anonymous User',
+                applicantEmail: 'No email provided'
+              };
+            }
+            
             // Fetch the user document to get the name
-            const userRef = doc(db, 'users', appData.userId);
+            const userRef = doc(db, 'users', userId);
             const userSnap = await getDoc(userRef);
             const userData = userSnap.data() || {};
 
             return {
               id: doc.id,
               ...appData,
-              applicantId: appData.userId, // Ensure we have applicantId
+              applicantId: userId, // Ensure we have applicantId
               applicantName: userData.name || 'Anonymous User',
               applicantEmail: userData.email || 'No email provided'
             };
           })
         );
         setApplications(applicationsData);
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching applications:', error);
+        setLoading(false); // Make sure to set loading to false on error
       }
     };
 
@@ -465,11 +501,11 @@ const EmployerDashboard = () => {
   return (
     <DashboardContainer>
       <h2>Employer Dashboard</h2>
-
+      
       <Button onClick={() => setShowForm(!showForm)} style={{ marginBottom: '2rem' }}>
         {showForm ? 'Cancel' : 'Post New Job'}
       </Button>
-
+      
       {showForm && (
         <JobForm onSubmit={handleSubmit}>
           <FormGroup>
@@ -602,7 +638,7 @@ const EmployerDashboard = () => {
                 </ApplicationItem>
               ))}
             </ApplicationsList>
-
+            
             <JobActions>
               <Button onClick={() => handleDeleteJob(job.id)} className="delete">
                 Delete
@@ -613,7 +649,7 @@ const EmployerDashboard = () => {
       </JobList>
 
       <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
-
+      
       <Container>
         <Title>Applications Received</Title>
         <ApplicationsGrid>
@@ -637,10 +673,10 @@ const EmployerDashboard = () => {
           <ModalContent>
             <CloseButton onClick={() => setShowMessageModal(false)}>&times;</CloseButton>
             <h3>Messaging {selectedApplication.applicantName}</h3>
-            <MessageBox
-              applicationId={selectedApplication.id}
+            <MessageBox 
               senderId={currentUser.uid}
               receiverId={selectedApplication.userId || selectedApplication.applicantId}
+              applicationId={selectedApplication.id}
             />
           </ModalContent>
         </Modal>
